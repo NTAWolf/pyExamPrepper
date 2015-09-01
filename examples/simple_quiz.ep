@@ -1,0 +1,17 @@
+Category 1
+
+?1.1 My first question
+#Hello world!
+?1.2 My second question
+#Hello you!
+
+Ignored line
+Category 2
+% Comment here
+?2.1 My third question
+#In category 2
+They can be multiline!
+
+Category 3
+?3.1
+#3.1
