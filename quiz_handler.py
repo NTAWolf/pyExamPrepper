@@ -7,7 +7,7 @@ question issuance and question reinsertion.
 
 import numpy as np
 from datetime import datetime
-
+from itertools import compress
 
 def ORDER_RANDOM(categories):
     """Jumble all questions, regardless of categories.
@@ -49,6 +49,14 @@ ORDER_OPTIONS = [ORDER_RANDOM, ORDER_NO_RANDOM,
                 ORDER_RANDOM_WITHIN_CATEGORY, 
                 ORDER_RANDOM_BETWEEN_CATEGORY, 
                 ORDER_CATEGORIES_RANDOM_AND_RANDOM_WITHIN_CATEGORY]
+
+ORDER_DICT = {'random': ORDER_RANDOM,
+    'no_random': ORDER_NO_RANDOM,
+    'random_within_category': ORDER_RANDOM_WITHIN_CATEGORY,
+    'random_between_category': ORDER_RANDOM_BETWEEN_CATEGORY,
+    'categories_random_and_random_within_category': ORDER_CATEGORIES_RANDOM_AND_RANDOM_WITHIN_CATEGORY
+}
+
 
 
 class Category(list):
@@ -94,13 +102,19 @@ class QuizConductor(object):
     question repetitions, and delivering progress feedback.
     """
 
-    def __init__(s, categories):
+    def __init__(s, categories, presets=None):
         """categories is a list of Category
         order is a function for ordering
+        presets is a dict with optional key-value pairs for predefining settings:
+            order: random, no_random, random_within_category, random_between_category, and
+                   categories_random_and_random_within_category
+            category_indices: a list of indices of chosen categories. Empty list for all categories.
+            repetition_lag: an integer or a two-tuple of integers.
         """
         s.base_categories = categories
         s.reset_indices()
-        # s.update()
+        s.reset_flags()
+        s.presets = presets or dict()
 
     def reinsert(s, qa):
         if s.repetition_lag == 'random':
@@ -125,6 +139,11 @@ class QuizConductor(object):
         """
         s._current_category_index = 0
         s._current_question_index = -1
+
+    def reset_flags(s):
+        s.order = None
+        s.category_indices = None
+        s.repetition_lag = None
 
     def __iter__(s):
         return s
@@ -188,13 +207,31 @@ class QuizConductor(object):
     def elapsed_time(s):
         return datetime.now() - s.start_time
 
-    def setup(s, ui):
+    def setup(s, ui, presets):
         """ui is a user interface, implementing QuizInterfaceBase
         """
-        s.categories = ui.select_categories(s.base_categories)
-        order = ui.select_ordering(ORDER_OPTIONS)
+        if 'order' in presets:
+            order = ORDER_DICT[presets['order']]
+        else:
+            order = ui.select_ordering(ORDER_OPTIONS)
+
+        if 'category_indices' in presets:
+            category_indices = presets['category_indices']
+            s.categories = list(compress(s.base_categories, 
+                                        map(lambda x: x in category_indices, 
+                                            range(len(s.base_categories))
+                                           )
+                                        )
+                                )
+        else:
+            s.categories = ui.select_categories(s.base_categories)
+
+        if 'repetition_lag' in presets:
+            s.repetition_lag = presets['repetition_lag']
+        else:
+            s.repetition_lag = ui.select_repetition_lag()
+
         s.categories = order(s.categories)
-        s.repetition_lag = ui.select_repetition_lag()
 
     def handle_question(s, ui, qa):
         ui.show_question(qa)
@@ -205,7 +242,7 @@ class QuizConductor(object):
             s.reinsert(s.current_question)
 
     def run(self, ui):
-        self.setup(ui)
+        self.setup(ui, self.presets)
         self.update()
         self.n_questions_seen = 0
         self.start_time = datetime.now()

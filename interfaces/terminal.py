@@ -7,7 +7,7 @@ import subprocess # For use in commandline
 import re
 import os # used in clear()
 
-class CLI(QuizInterfaceBase):
+class Terminal(QuizInterfaceBase):
     """Command line interface for quizzing
     Currently only supporting OSX Terminal (due use of 'open' command).
 
@@ -18,7 +18,7 @@ class CLI(QuizInterfaceBase):
         s.PART_DELIMITER = '----------'
     
     def select_categories(s, categories): # Override super
-        CLI.clear()     
+        Terminal.clear()     
         print "Select the categories you want."
         print "Select any number of categories by entering their index numbers"
         print "separated by spaces and/or commas."
@@ -34,7 +34,7 @@ class CLI(QuizInterfaceBase):
         for i, cat in enumerate(categories):
             frac_qas = len(cat) / largest_cat_len
             print format(i, ' 3'),
-            print CLI.generate_progress_bar(8, frac_qas),
+            print Terminal.generate_progress_bar(8, frac_qas),
             print cat
         print
 
@@ -60,7 +60,7 @@ class CLI(QuizInterfaceBase):
         return selected_categories
 
     def select_ordering(s, order_options): # Override super
-        # CLI.clear()
+        # Terminal.clear()
         for i, op in enumerate(order_options):
             print "Press {} for: {}".format(i+1, op.__doc__)
 
@@ -76,7 +76,7 @@ class CLI(QuizInterfaceBase):
             print "Sorry, not understood. Enter a number from 1 to {}.".format(len(order_options))
 
     def select_repetition_lag(s): # Override super
-        CLI.clear() 
+        Terminal.clear() 
         print "How many questions must pass before you get a wrongly answered question again?"
         print "Enter a blank line if you don't care"
 
@@ -98,14 +98,14 @@ class CLI(QuizInterfaceBase):
 
     def show_current_info(s, quiz_conductor): # Override super
         qc = quiz_conductor
-        CLI.clear()
+        Terminal.clear()
         
         print qc.get_current_category_name()
-        print "|" + CLI.generate_progress_bar(20, qc.get_progress_within_category()) + "|",
+        print "|" + Terminal.generate_progress_bar(20, qc.get_progress_within_category()) + "|",
         print str(qc.get_completed_questions_in_category_count()) + "/" + \
               str(qc.get_total_questions_in_category_count()), "in this category."
 
-        print "|" + CLI.generate_progress_bar(20, qc.get_total_progress()) + "|",
+        print "|" + Terminal.generate_progress_bar(20, qc.get_total_progress()) + "|",
         print str(qc.get_total_questions_done_count()) + "/" + \
               str(qc.get_total_question_count()), "in total."
         print
@@ -157,26 +157,26 @@ class CLI(QuizInterfaceBase):
             return off_sym*remaining_length + on_part
 
 
-# End of class CLI
+# End of class Terminal
 
 
-def run_cli_quiz(path, quiz, images='images'):
+def run_terminal_quiz(path, quiz, images='images'):
     """path is the path to a folder
     quiz is the file name of the quiz file, presumed to be in the folder "path"
     images is the folder name of the folder containing images pertaining to 
     the quiz. It too is expected to be in the path folder.
     """
-    cli = CLI(path, quiz, 'images')
-    cli.setup()
-    cli.run()
+    terminal = Terminal(path, quiz, 'images')
+    terminal.setup()
+    terminal.run()
 
     print "Write anything followed by enter to reload quiz file."
     while raw_input() != '':
-        cli.load_quiz()
+        terminal.load_quiz()
         print "Try a new configuration? y for yes, anything else to exit."
         if raw_input() == 'y':
-            cli.setup()
-            cli.run()
+            terminal.setup()
+            terminal.run()
         else:
             break
         print "Write anything followed by enter to reload quiz file."
