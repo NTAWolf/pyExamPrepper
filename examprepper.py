@@ -161,13 +161,13 @@ class QuizInterfaceBase(object):
 
         s.file_path = base_path + '/' + source_file # TODO Use something platform independent.
         s.image_folder = base_path + '/' + image_folder
-    
+
         # Load quiz from file
         s.categories = parse_ep(s.file_path)
 
         s.selected_categories = []
         s.unanswered = []
-    
+
     def setup(s, callback_per_step=None):
         """Allows the user to pick categories, 
         pick an ordering of questions and categories,
@@ -320,7 +320,7 @@ class CLI(QuizInterfaceBase):
             s.selected_categories.append(s.categories[int(val)])
 
     def pick_ordering(s): # Override super
-        CLI.clear()     
+        CLI.clear()
         print "Press 1 to use random ordering, mixing all the chosen categories."
         print "Press 2 to use the ordering defined in your quiz document."
         print "Press 3 to use the category order from your document, but shuffle the questions within each category."
@@ -349,7 +349,7 @@ class CLI(QuizInterfaceBase):
                 print "Sorry, not understood. Pick a number from 1 to 5."
 
     def select_repetition_lag(s): # Override super
-        CLI.clear()     
+        CLI.clear() 
         print "How many questions must pass before you get a wrongly answered question again?"
         print "Enter a blank line if you don't care"
 
@@ -370,7 +370,7 @@ class CLI(QuizInterfaceBase):
 
     def display_current_info(s): # Override super
         qc = s.quiz_conductor
-        CLI.clear()     
+        CLI.clear()
         
         print qc.get_current_category_name()
         print "|" + CLI.generate_progress_bar(20, qc.get_progress_within_category()) + "|",
@@ -411,7 +411,7 @@ class CLI(QuizInterfaceBase):
         if not s.evaluate_answer():
             s.quiz_conductor.repeat()
 
-    def run(s):
+    def run(s): # Override super
         super(CLI, s).run()
 
         print 
@@ -445,7 +445,7 @@ class CLI(QuizInterfaceBase):
             return off_sym*remaining_length + on_part
 
 
-# End of class CLI        
+# End of class CLI
 
 
 def run_cli_quiz(path, quiz, images='images'):
