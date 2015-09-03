@@ -1,24 +1,148 @@
 from quiz_handler import Category, QuestionAnswer
+from itertools import groupby
+import re
 
-QUESTION_START_SYMBOL = '?'
-ANSWER_START_SYMBOL = '#'
-MEDIA_START_SYMBOL = '['
-MEDIA_END_SYMBOL = ']'
-LINE_COMMENT_SYMBOL = '%'
+QUESTION_LINE_RE = re.compile('^\?.*')
+MEDIA_CONTENT_RE = re.compile('^\??(\[([^\]]+)\])+')
+COMMENT_LINE_RE = re.compile('^\s*%.*')
 
-def extract_media_filenames(line):
-    """Returns a tuple: First is line without media filenames,
-    second is a tuple of media filenames
+def extract_QuestionAnswer(lines):
+    """Returns a QuestionAnswer.
+    lines is a list of strings, and must be guaranteed to
+    contain only a full, proper question and answer.
     """
+    for L in lines:
+        errormsg = []
+        if any([COMMENT_LINE_RE.match(L) for L in lines]):
+            msg = "lines must not contain comments."
+            errormsg.append(msg)
+        if any([L == '' for L in lines]):
+            msg = "no empty lines are allowed in a question-answer."
+            errormsg.append(msg)
 
-    media_filenames = []
-    while line.startswith(MEDIA_START_SYMBOL): # Take all media filenames: [image.png][sound.wav]Question proceeds here
-        endsym = line.find(MEDIA_END_SYMBOL)
-        if endsym > 0:
-            media_filenames.append(line[1:endsym])
-            line = line[endsym+1:]
+        grouped = list(groupby(lines, lambda x: bool(QUESTION_LINE_RE.match(x[0]))))
+        if not 1 == sum([k for k,g in grouped]):
+            msg = "A QA must contain at least one question line, and question must be consecutive across lines."
+            errormsg.append(msg)
+        if not len(grouped) == 2:
+            msg = "An error occured - more than one question or one answer is considered part of this qa."
+            errormsg.append(msg)
 
-    return line, tuple(media_filenames)
+        # question
+        question_media = []
+        question_text = []
+        answer_media = []
+        answer_text = []
+
+        for line in lines:
+            if QUESTION_LINE_RE.match(line):
+                question_text.append(line[1:])
+            else:
+                answer_text.append(line)
+        
+        qa = QuestionAnswer(''.join(question_text + errormsg), 
+                            ''.join(answer_text), 
+                            question_media, 
+                            answer_media)
+
+        return qa
+
+
+class LineParser(object):
+    def __init__(s):
+        s.current_category = Category('Default')
+        s.categories = []
+        s.qa_buffer = []
+        s.building_question = False
+        s.building_answer = False
+        s.discarded_text = []
+        s.comments = []
+        s.line_number = -1
+
+    def clear(s):
+        s.qa_buffer = []
+        s.building_answer = False
+        s.building_question = False
+
+    def store_discarded_qa(s):
+        if len(s.qa_buffer) > 0:
+            i = s.line_number - len(s.qa_buffer)
+            for L in s.qa_buffer:
+                i += 1
+                s.discarded_text.append((i,L))
+        s.qa_buffer = []
+
+    def store_discarded_category(s, category):
+        if 'line_number' in category:
+            i = category.line_number
+        else:
+            i = '<' + str(s.line_number)
+        s.discarded_text.append((i,category.name))
+
+    def flush_qa(s):
+        """flush the buffer for the current question/answer
+        into a QuestionAnswer, and put it in the current category.
+        """
+        if len(s.qa_buffer) == 0:
+            return
+        qa = extract_QuestionAnswer(s.qa_buffer)
+        s.current_category.append(qa)
+        s.clear()
+
+    def flush_category(s, new_category_name=None):
+        """flush the buffer for the current category
+        putting it into the list of categories iff the
+        category contains questions.
+        """
+        if len(s.current_category) != 0:
+            s.categories.append(s.current_category)
+        else:
+            s.store_discarded_category(s.current_category)
+
+        if new_category_name:
+            s.current_category = Category(new_category_name)
+        else:
+            s.current_category = Category('Default')
+
+    def parse_line(s, line):
+        s.line_number += 1
+        if COMMENT_LINE_RE.match(line):
+            s.comments.append(line)
+            return
+        if line == '\n':
+            if s.building_question:
+                # Abandon question
+                s.store_discarded_qa()
+                s.clear()
+            elif s.building_answer:
+                # flush_qa QA
+                s.flush_qa()
+            return
+        if QUESTION_LINE_RE.match(line):
+            if not s.building_question:
+                # flush_qa qa, begin
+                s.flush_qa()
+                s.building_question = True
+            s.qa_buffer.append(line)
+            return
+            # else
+        if s.building_question: # and line does not match the question line re:
+            s.building_question = False
+            s.building_answer = True
+        if s.building_answer:
+            s.qa_buffer.append(line)
+            return
+        s.flush_category(line)
+
+    def close(s):
+        s.flush_qa()
+        s.flush_category()
+
+    def get_parsed(s):
+        return s.categories
+
+    def get_discarded(s):
+        return s.discarded_text
 
 
 def parse(file_path):
@@ -26,56 +150,15 @@ def parse(file_path):
     the parsed list of categories
     """
 
-    current_category = Category('unnamed')
-    categories = []
-
-    def flush():
-        qa = QuestionAnswer(current_question, current_answer, question_media_filenames, answer_media_filenames)
-        current_category.append(qa)
+    p = LineParser()
 
     with open(file_path) as f:
-        building_question = False
-        building_answer = False
-        current_question = None
-        current_answer = None
-        question_media_filenames = None
-        answer_media_filenames = None
-        last_line = ''
+        for i, line in enumerate(f):
+            p.parse_line(line)
+        p.close()
 
-        for line in f:
-            if line[0] == LINE_COMMENT_SYMBOL:
-                continue
-            if line[0] == QUESTION_START_SYMBOL:
-                if building_answer:
-                    building_answer = False
-                    # Flush question and answer.
-                    flush()
-                building_question = True
-                current_question, question_media_filenames = extract_media_filenames(line[1:])
-                
-            elif line[0] == ANSWER_START_SYMBOL:
-                building_question = False
-                building_answer = True
-                current_answer, answer_media_filenames = extract_media_filenames(line[1:])
-            elif building_question:
-                current_question += line
-            elif building_answer:
-                if line != '\n':
-                    current_answer += line
-                else:
-                    building_answer = False
-                    # Flush question and answer.
-                    flush()
-            elif line != '\n':
-                if len(current_category) > 0:
-                    categories.append(current_category)
-                current_category = Category(line)
+    print "Discarded text from quiz file:"
+    for L,val in p.get_discarded():
+        print str(L).rjust(5), val
 
-    # End of file. Wrap up:
-    if building_answer:
-            # Flush question and answer.
-            flush()
-    if len(current_category) > 0:
-        categories.append(current_category)
-
-    return categories
+    return p.get_parsed()

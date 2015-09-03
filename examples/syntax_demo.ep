@@ -1,0 +1,36 @@
+Basics
+?My first question (start with question mark)
+And the first answer (immediately following the question)
+?My second question
+% A sneaky comment between question and answer; it will be ignored
+And the second answer (it will be seen as immediately following the question, since the comment is ignored)
+% Another comment
+?My third question
+My third answer
+
+Multiline options
+?This question
+?can span many
+?lines
+And its answer
+can span many lines,
+as well (but doesn't have to)
+?You want an empty line in your question?
+Just use whitespace! This could be a single space with the space bar, as here:
+ 
+The question continues here, as the preceding line is not empty.
+
+This line is ignored - it will not show up in the quiz, as it is neither a question nor a non-empty category.
+
+    % indented comments
+    % are also possible
+
+Future category (not implemented yet)
+?[south_korea_flag.png]
+?Which country has this flag?
+South Korea!
+?What bird is this?
+?[mockingbird.wav]
+The mockingbird
+?Draw the schematics for a simple rectifier.
+[rectifier.jpg]
