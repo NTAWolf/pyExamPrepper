@@ -4,17 +4,22 @@ Therefore, please refer to syntax_demo.ep for a nicer-looking syntax example.
 Category 1
 
 ?1.1 My first question
-#Hello world!
+Hello world!
 ?1.2 My second question
-#Hello you!
+Hello you!
 
 Ignored line
 Category 2
 % Comment here
 ?2.1 My third question
-#In category 2
+In category 2
 They can be multiline!
 
 Category 3
 ?3.1
-#3.1
+3.1
+
+?Will it break with a comment inside the answer?
+Answer part 1/2
+% some comment
+Answer part 2/2
