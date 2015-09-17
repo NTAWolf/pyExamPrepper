@@ -59,6 +59,13 @@ class View(object):
         """
         return '\n'*n
 
+    def hcenter(self, text):
+        """text is a string
+        returns text padded with whitespace to center it
+        """
+        text = text.strip()
+        return text.center(self.t.width)
+
     def render_execute(self, execute):
         """execute is a method to be run while showing the contents
         whatever execute returns will be returned by render. No 
@@ -83,8 +90,7 @@ class Terminal(QuizInterfaceBase):
     def __init__(s):
         from blessed import Terminal as BlessedTerminal
         s.t = BlessedTerminal()
-        s.qa_view = View(s.t)
-        s.init_view = View(s.t)
+        s.view = View(s.t)
         
     def set_media_folder(s, path):
         s.media_folder = path
@@ -122,14 +128,41 @@ class Terminal(QuizInterfaceBase):
                         op.pop(k)
         return op
 
-    def select_categories(s, categories):
+    def select_index_from_list(self, length, view, shift=0, select_multiple=False, accept_empty=False):
+        # Aaay, this could sure need some clean-up for readability!
+        
+        error_message = ''.join([view.vpad(),
+                                  "Sorry, not understood. Enter ",
+                                  "one or more numbers" if select_multiple else "a number",
+                                  " from {} to {}.".format(shift, length+shift-1)])
+        while True:
+            inp = view.render_execute(raw_input_prompt)
+            if accept_empty and RE_WHITESPACE.match(inp):
+                return []
+            if select_multiple:
+                idx = map(lambda x: x-1, self.parse_uint_list(inp))
+                if len(idx) > 0:
+                    return idx
+            else:
+                try:
+                    inp = int(inp)
+                except ValueError as ve:
+                    pass
+                else:
+                    if 1 <= inp <= length:
+                        index = inp-shift
+                        return index
+            view.push_if_new(error_message)
+
+
+    def select_categories(self, categories):
         """Allow the user to pick categories.
         Returns a list of selected categories.
         """
-        view = View(s.t)
+        view = View(self.t)
         view.extend(["Please select the categories you want to be quizzed in by entering their numbers.", 
                      "You can quickly select a range by using e.g. 3:7, instead of saying 3,4,5,6,7.",
-                     "You may select all categories by just pressing Enter."],
+                     "You may select all categories by just pressing Enter." + view.vpad()],
                      section_name='instructions')
         
         cats = []
@@ -137,23 +170,29 @@ class Terminal(QuizInterfaceBase):
             cats.append('{index}: ({length}) {name}'.format(index=str(i+1).rjust(3), 
                                                             length=str(len(cat)), 
                                                             name=cat.name))
-        view.extend(cats + [view.vpad()], section_name='categories')
+        view.extend(cats, section_name='categories')
+        view.push('')
 
-        idx = None
-        while True:
-            # res = s.render(op, raw_input)
-            res = view.render_execute(raw_input_prompt)
-            if RE_WHITESPACE.match(res): # Empty line
-                idx = range(len(categories))
-                break
-            idx = map(lambda x: x-1, s.parse_uint_list(res))
-            if len(idx) > 0:
-                break
-            view.push_if_new("Something is wrong with your input. Read the rules and try again.", section_name='error_msg')
+        idx = self.select_index_from_list(len(categories), view, shift=1, 
+                                    select_multiple=True, accept_empty=True)
+        if len(idx) == 0:
+            idx = range(len(categories))
+
+        # idx = None
+        # while True:
+        #     # res = s.render(op, raw_input)
+        #     res = view.render_execute(raw_input_prompt)
+        #     if RE_WHITESPACE.match(res): # Empty line
+        #         idx = range(len(categories))
+        #         break
+        #     idx = map(lambda x: x-1, s.parse_uint_list(res))
+        #     if len(idx) > 0:
+        #         break
+        #     view.push_if_new("Something is wrong with your input. Read the rules and try again.", section_name='error_msg')
 
         return [categories[i] for i in idx]
 
-    def select_ordering(s, order_options):
+    def select_ordering(self, order_options):
         """order_options is a list of methods, each defining a type of ordering.
         Each method has an instructive docstring, which can be used to explain it
         to a user. 
@@ -161,22 +200,26 @@ class Terminal(QuizInterfaceBase):
 
         Returns one of the methods in order_options
         """
-        view = View(s.t)
-        view.extend(["Please select an ordering that suits your needs by entering its corresponding number.", view.vpad()])
+        view = View(self.t)
+        view.push("Please select an ordering that suits your needs by entering its corresponding number." + view.vpad())
 
         for i, option in enumerate(order_options):
             view.push("Press {} for: {}".format(i+1, option.__doc__).replace('\n', ''))
+        view.push('')
 
-        while True:
-            try:
-                inp = int(view.render_execute(raw_input_prompt))
-            except ValueError as ve:
-                pass
-            else:
-                if 1 <= inp <= len(order_options):
-                    index = inp-1
-                    return order_options[index]
-            view.push_if_new("Sorry, not understood. Enter a number from 1 to {}.".format(len(order_options)))
+        index = self.select_index_from_list(len(order_options), view, shift=1)
+        return order_options[index]
+
+        # while True:
+        #     try:
+        #         inp = int(view.render_execute(raw_input_prompt))
+        #     except ValueError as ve:
+        #         pass
+        #     else:
+        #         if 1 <= inp <= len(order_options):
+        #             index = inp-1
+        #             return order_options[index]
+        #     view.push_if_new("Sorry, not understood. Enter a number from 1 to {}.".format(len(order_options)))
 
 
     def select_repetition_lag(self):
@@ -202,21 +245,21 @@ class Terminal(QuizInterfaceBase):
     def show_question(self, qa):
         """Present the given question to the user.
         """
-        if self.qa_view.contains_section('question'):
-            self.qa_view.revert_to_before_section('question')
+        if self.view.contains_section('question'):
+            self.view.revert_to_before_section('question')
         q = ["Question:", qa.question, '-'*(self.t.width/2)]
-        self.qa_view.extend(q, section_name='question')
+        self.view.extend(q, section_name='question')
 
     def show_answer(self, qa):
         """Show the reference answer to the user.
         """
         a = ["True answer:", qa.answer, '-'*(self.t.width/2)]
-        self.qa_view.extend(a, section_name='answer')
+        self.view.extend(a, section_name='answer')
     
     def get_response(self):
         """Returns the user's response to the current question
         """
-        self.qa_view.push('Your answer (end with an empty line):', section_name='response_prompt')
+        self.view.push('Your answer (end with an empty line):', section_name='response_prompt')
         def handler():
             out = []
             while True:
@@ -224,26 +267,51 @@ class Terminal(QuizInterfaceBase):
                 if inp == '':
                     return out
                 out.append(inp)
-        response = self.qa_view.render_execute(handler)
+        response = self.view.render_execute(handler)
         response = ['> ' + r for r in response]
-        self.qa_view.extend(response + ['-'*(self.t.width/2)], section_name='response')
+        self.view.extend(response + ['-'*(self.t.width/2)], section_name='response')
         return response
 
     def get_evaluation(self):
         """Returns the user's evaluation of their own current response.
         True for a correct response, False for incorrect.
         """
-        self.qa_view.push("Was your answer ok? y/n", section_name='eval_prompt')
+        self.view.push("Was your answer ok? y/n", section_name='eval_prompt')
         while True:
-            inp = self.qa_view.render_execute(raw_input_prompt)
+            inp = self.view.render_execute(raw_input_prompt)
             if inp.lower() == 'y':
-                self.qa_view.push('> ' + inp)
+                self.view.push('> ' + inp)
                 return True
             elif inp.lower() == 'n':
-                self.qa_view.push('> ' + inp)
+                self.view.push('> ' + inp)
                 return False
             else:
-                self.qa_view.push_if_new("Sorry, not understood. y or n, please", section_name='error_msg')
+                self.view.push_if_new("Sorry, not understood. y or n, please", section_name='error_msg')
+
+
+    def end_of_quiz(self, quiz_conductor, end_options):
+        """Tell the user that the quiz is over
+        end_options is a list of strings describing what options 
+        the user may take now for restarting the quiz.
+        Returns a list of indices of the end_options list.
+        """
+        view = View(self.t)
+        self.show_current_info(quiz_conductor)
+        view.push(view.vpad())
+        view.push(view.hcenter('This is the end of the quiz! Good job!'))
+        view.push(view.vpad())
+        view.push('Now, select one of the following options:')
+
+        opt = []
+        for i,option in enumerate(end_options):
+            opt.append('{index}: {description}'.format(index=str(i+1).rjust(3), 
+                                                       description=option))
+        view.extend(opt + [view.vpad()], section_name='options')
+
+        res = self.select_index_from_list(len(end_options), view, shift=1, select_multiple=False, accept_empty=False)
+        return res
+
+        # raise NotImplementedError('end_of_quiz is an abstract method - implement it yourself!')
 
     def make_progress_bar(s, nchars, progress,
         end_char='|', covered_char='=', current_pos_char='>', uncovered_char=' '):

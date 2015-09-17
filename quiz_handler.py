@@ -113,7 +113,7 @@ class QuizConductor(object):
         """
         s.base_categories = categories
         s.reset_indices()
-        s.reset_flags()
+        s.repetition_lag = None
         s.presets = presets or dict()
 
     def reinsert(s, qa):
@@ -139,11 +139,6 @@ class QuizConductor(object):
         """
         s._current_category_index = 0
         s._current_question_index = -1
-
-    def reset_flags(s):
-        s.order = None
-        s.category_indices = None
-        s.repetition_lag = None
 
     def __iter__(s):
         return s
@@ -241,8 +236,24 @@ class QuizConductor(object):
         if not answer_ok:
             s.reinsert(s.current_question)
 
-    def run(self, ui):
-        self.setup(ui, self.presets)
+    def handle_end(self, ui):
+        options = ['Exit program',
+                   'Reload quiz file and set options again',
+                   'Reload quiz file and rerun with same options']
+        res = ui.end_of_quiz(self, options)
+        
+        self.reset_indices()
+        if res == 1:
+            self.presets = dict()
+            self.run(ui, with_setup=True)
+        elif res == 2:
+            self.run(ui, with_setup=False)
+        # else just exit
+
+
+
+    def run(self, ui, with_setup=True):
+        if with_setup: self.setup(ui, self.presets)
         self.update()
         self.n_questions_seen = 0
         self.start_time = datetime.now()
@@ -251,5 +262,8 @@ class QuizConductor(object):
             self.n_questions_seen += 1
             ui.show_current_info(self)
             self.handle_question(ui,qa)
+
+        self.handle_end(ui)
+
 
 # End of class QuizConductor

@@ -64,4 +64,12 @@ class QuizInterfaceBase(object):
         """
         raise NotImplementedError('get_evaluation is an abstract method - implement it yourself!')
 
+    def end_of_quiz(s, end_options):
+        """Tell the user that the quiz is over
+        end_options is a list of strings describing what options 
+        the user may take now for restarting the quiz.
+        Returns a list of indices of the end_options list.
+        """
+        raise NotImplementedError('end_of_quiz is an abstract method - implement it yourself!')
+
 # End of class QuizInterfaceBase
