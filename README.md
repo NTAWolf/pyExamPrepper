@@ -19,7 +19,7 @@ A lightweight quiz program for user-created quizzes. Useful for reading up on ex
     + E.g. MEDIA:quizmedia, or MEDIA:../../Documents/flags
 
 ### Feature demonstrating quiz
-*Note that the actual quiz should not be indented. The quiz is also in the file examples/syntax_demo.ep*
+*If you are looking in the raw file, note that the actual quiz should not be indented. The quiz is also in the file examples/syntax_demo.ep*
 
     Basics
     ?My first question (start with question mark)

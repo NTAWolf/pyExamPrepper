@@ -1,3 +1,6 @@
+This quiz file is intended for debugging, looking into edge cases, and generally trying to break the quiz parser.
+Therefore, please refer to syntax_demo.ep for a nicer-looking syntax example.
+
 Category 1
 
 ?1.1 My first question
