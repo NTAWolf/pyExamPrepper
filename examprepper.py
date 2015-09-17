@@ -1,7 +1,5 @@
 # encoding: utf-8
 
-from interfaces.terminal import Terminal
-
 def run(interface, file_path, media_path_rel='./media', presets=None):
     """Runs a quiz using the supplied interface (instance of QuizInterfaceBase)
     and the quiz document in file_path. It looks for media (images, sound) in
@@ -47,9 +45,9 @@ if __name__ == '__main__':
 
     interface = None
     if args.interface == 'terminal':
+        from interfaces.terminal import Terminal
         interface = Terminal()
     else:
-        print args.interface, "not an implemented interface type"
-        raise NotImplementedError()
+        raise NotImplementedError("{} not an implemented interface type".format(args.interface))
 
     run(interface, args.file_path, args.media_path, presets=presets)

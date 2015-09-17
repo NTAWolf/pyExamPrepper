@@ -13,7 +13,7 @@ class QuizInterfaceBase(object):
         """Allow the user to pick categories.
         Returns a list of selected categories.
         """
-        raise NotImplementedError('Abstract method - implement it yourself!')
+        raise NotImplementedError('select_categories is an abstract method - implement it yourself!')
 
     def select_ordering(s, order_options):
         """order_options is a list of methods, each defining a type of ordering.
@@ -23,7 +23,7 @@ class QuizInterfaceBase(object):
 
         Returns one of the methods in order_options
         """
-        raise NotImplementedError('Abstract method - implement it yourself!')
+        raise NotImplementedError('select_ordering is an abstract method - implement it yourself!')
 
     def select_repetition_lag(s):
         """Allow user to select how many questions should pass before 
@@ -33,7 +33,7 @@ class QuizInterfaceBase(object):
         Put the decision in s.repetition_lag, and set it to a negative value 
         to just put the failed question at the end of the queue.
         """
-        raise NotImplementedError('Abstract method - implement it yourself!')
+        raise NotImplementedError('select_repetition_lag is an abstract method - implement it yourself!')
 
     def show_current_info(s, quiz_conductor):
         """Display whatever info you think the user would like to see.
@@ -41,28 +41,27 @@ class QuizInterfaceBase(object):
         can give a lot of different information about it.
         Called before display_question.
         """
-        raise NotImplementedError('Abstract method - implement it yourself!')
+        raise NotImplementedError('show_current_info is an abstract method - implement it yourself!')
 
     def show_question(s, qa):
         """Present the given question to the user.
         """
-        raise NotImplementedError('Abstract method - implement it yourself!')
+        raise NotImplementedError('show_question is an abstract method - implement it yourself!')
 
-    def show_answer(s):
+    def show_answer(s, qa):
         """Show the reference answer to the user.
         """
-        raise NotImplementedError('Abstract method - implement it yourself!')
+        raise NotImplementedError('show_answer is an abstract method - implement it yourself!')
     
     def get_response(s):
         """Returns the user's response to the current question
         """
-        raise NotImplementedError('Abstract method - implement it yourself!')
+        raise NotImplementedError('get_response is an abstract method - implement it yourself!')
 
     def get_evaluation(s):
         """Returns the user's evaluation of their own current response.
         True for a correct response, False for incorrect.
         """
-        raise NotImplementedError('Abstract method - implement it yourself!')
-
+        raise NotImplementedError('get_evaluation is an abstract method - implement it yourself!')
 
 # End of class QuizInterfaceBase

@@ -157,8 +157,8 @@ def parse(file_path):
             p.parse_line(line)
         p.close()
 
-    print "Discarded text from quiz file:"
-    for L,val in p.get_discarded():
-        print str(L).rjust(5), val
+    # print "Discarded text from quiz file:"
+    # for L,val in p.get_discarded():
+        # print str(L).rjust(5), val
 
     return p.get_parsed()

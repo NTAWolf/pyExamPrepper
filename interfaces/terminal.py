@@ -1,182 +1,282 @@
 # encoding: utf-8
-
+from __future__ import print_function
 
 from base_interface import QuizInterfaceBase
-
-import subprocess # For use in commandline
 import re
-import os # used in clear()
+
+RE_WHITESPACE = re.compile("^\s*$")
+
+class View(object):
+    def __init__(self, terminal=None, input_gt=False, view=None):
+        if view != None and type(view) == View:
+            self.t = terminal or view.t
+            self.contents = view.contents[:]
+            self.section_names = view.section_names.copy()
+            self.input_gt = view.input_gt
+        else:
+            self.t = terminal
+            self.contents = []
+            self.input_gt = input_gt
+            self.section_names = dict()
+
+    def clear(self):
+        self.contents = []
+
+    def push(self, content, section_name=None):
+        self.set_section(section_name, length=1)
+        self.contents.append(content)
+
+    def push_if_new(self, content, section_name=None):
+        self.set_section(section_name, length=1)
+        if content not in self.contents:
+            self.push(content)
+
+    def set_section(self, section_name, length=1):
+        if section_name == None:
+            return
+        i = len(self.contents)
+        self.section_names[section_name] = (i, i+length)
+
+    def pop_section(self, section_name):
+        start, end = self.section_names.pop(section_name)
+        ct = self.contents
+        self.contents = ct[:start] + ct[end:]
+
+    def revert_to_before_section(self, section_name):
+        start, end = self.section_names.pop(section_name)
+        ct = self.contents
+        self.contents = ct[:start]
+
+    def contains_section(self, section_name):
+        return section_name in self.section_names
+
+    def extend(self, content, section_name=None):
+        self.set_section(section_name, length=len(content))
+        self.contents.extend(content)
+
+    def vpad(self, n=1):
+        """returns n (default 1) newline, to be used when adding content
+        """
+        return '\n'*n
+
+    def render_execute(self, execute):
+        """execute is a method to be run while showing the contents
+        whatever execute returns will be returned by render. No 
+        arguments are passed to it.
+        """
+        with self.t.fullscreen():
+            for v in self.contents:
+                print(v)
+            if self.input_gt:
+                print('> ', end='')
+            return execute()
+
+def raw_input_prompt():
+    return raw_input('> ')
+
 
 class Terminal(QuizInterfaceBase):
-    """Command line interface for quizzing
-    Currently only supporting OSX Terminal (due use of 'open' command).
-
-    Run by building the object, calling setup, and then calling 
+    """This is the base user interface for an ExamPrepper quiz.
+    Extend and implement it in subclasses, catering to different views.
     """
 
     def __init__(s):
-        s.PART_DELIMITER = '----------'
-    
-    def select_categories(s, categories): # Override super
-        Terminal.clear()     
-        print "Select the categories you want."
-        print "Select any number of categories by entering their index numbers"
-        print "separated by spaces and/or commas."
-        print "Select all categories by entering a blank line."
-        print "Select all categories except some by writing category numbers with",
-        print "a minus sign in front of each."
-        print "The categories are..."
-        print
+        from blessed import Terminal as BlessedTerminal
+        s.t = BlessedTerminal()
+        s.qa_view = View(s.t)
+        s.init_view = View(s.t)
+        
+    def set_media_folder(s, path):
+        s.media_folder = path
 
-        # Print small progress bars indicating relative category sizes
-        # Also, print number of questions per category, and category names.
-        largest_cat_len = float(max([len(x) for x in categories]))
-        for i, cat in enumerate(categories):
-            frac_qas = len(cat) / largest_cat_len
-            print format(i, ' 3'),
-            print Terminal.generate_progress_bar(8, frac_qas),
-            print cat
-        print
+    def parse_uint_list(s, line, unique=False):
+        """Takes a string comprising one line
+        and returns a list of nonnegative integers.
+        Understands spaces, commas, and semicolons.
+        Interprets colon as an INCLUSIVE range operator.
+        Understands step operator in a range.
 
+        If unique is set to True, it will return only the first
+        encountered instance of each value.
+        """
+        elems = re.compile('(\d+)(?::(?P<end>\d+))?(?::(?P<step>\d+))?')
+        op = []
+        parts = elems.findall(line)
 
-        # Interpret input
-        # TODO Allow slice operators
-        selected_categories = [] 
-        inp = raw_input()
-        if inp == '':
-            return categories
-        inp = [x for x in re.split('[ ,]+', inp) if not x == '']
+        for val in parts:
+            v0 = int(val[0])
+            if len(val[1]) > 0:
+                v1 = int(val[1]) + 1
+                if len(val[2]) > 0:
+                    v2 = int(val[2])
+                    op.extend(range(v0,v1,v2))
+                    continue
+                op.extend(range(v0,v1))
+                continue
+            op.append(v0)
 
-        if all([x.startswith('-') for x in inp]): # All are negations
-            catidx = list(range(len(categories)))
-            for val in inp:
-                catidx.remove(int(val[1:]))
-            inp = catidx
+        if unique:
+            for i in range(len(op)):
+                for k in range(len(op)-1,i, -1):
+                    if op[i] == op[k]:
+                        op.pop(k)
+        return op
 
-        for val in inp:
-            print val
-            selected_categories.append(categories[int(val)])
+    def select_categories(s, categories):
+        """Allow the user to pick categories.
+        Returns a list of selected categories.
+        """
+        view = View(s.t)
+        view.extend(["Please select the categories you want to be quizzed in by entering their numbers.", 
+                     "You can quickly select a range by using e.g. 3:7, instead of saying 3,4,5,6,7.",
+                     "You may select all categories by just pressing Enter."],
+                     section_name='instructions')
+        
+        cats = []
+        for i,cat in enumerate(categories):
+            cats.append('{index}: ({length}) {name}'.format(index=str(i+1).rjust(3), 
+                                                            length=str(len(cat)), 
+                                                            name=cat.name))
+        view.extend(cats + [view.vpad()], section_name='categories')
 
-        return selected_categories
+        idx = None
+        while True:
+            # res = s.render(op, raw_input)
+            res = view.render_execute(raw_input_prompt)
+            if RE_WHITESPACE.match(res): # Empty line
+                idx = range(len(categories))
+                break
+            idx = map(lambda x: x-1, s.parse_uint_list(res))
+            if len(idx) > 0:
+                break
+            view.push_if_new("Something is wrong with your input. Read the rules and try again.", section_name='error_msg')
 
-    def select_ordering(s, order_options): # Override super
-        # Terminal.clear()
-        for i, op in enumerate(order_options):
-            print "Press {} for: {}".format(i+1, op.__doc__)
+        return [categories[i] for i in idx]
+
+    def select_ordering(s, order_options):
+        """order_options is a list of methods, each defining a type of ordering.
+        Each method has an instructive docstring, which can be used to explain it
+        to a user. 
+        Allow user to pick an ordering of the questions and categories.
+
+        Returns one of the methods in order_options
+        """
+        view = View(s.t)
+        view.extend(["Please select an ordering that suits your needs by entering its corresponding number.", view.vpad()])
+
+        for i, option in enumerate(order_options):
+            view.push("Press {} for: {}".format(i+1, option.__doc__).replace('\n', ''))
 
         while True:
             try:
-                inp = int(raw_input())
+                inp = int(view.render_execute(raw_input_prompt))
             except ValueError as ve:
                 pass
             else:
                 if 1 <= inp <= len(order_options):
-                    print inp
-                    return order_options[inp-1]
-            print "Sorry, not understood. Enter a number from 1 to {}.".format(len(order_options))
+                    index = inp-1
+                    return order_options[index]
+            view.push_if_new("Sorry, not understood. Enter a number from 1 to {}.".format(len(order_options)))
 
-    def select_repetition_lag(s): # Override super
-        Terminal.clear() 
-        print "How many questions must pass before you get a wrongly answered question again?"
-        print "Enter a blank line if you don't care"
 
-        try:
-            repetition_lag = int(raw_input())
-        except ValueError as e:
-            repetition_lag = -1
-        return repetition_lag
+    def select_repetition_lag(self):
+        """Allow user to select how many questions should pass before 
+        a previously failed question is asked again.
+        Returns an integer or a two-tuple of integers.
+        In the future, this might change to a range, allowing for some randomness.
+        Put the decision in s.repetition_lag, and set it to a negative value 
+        to just put the failed question at the end of the queue.
+        """
+        return 1 # TODO
+        # raise NotImplementedError('Abstract method - implement it yourself!')
 
-    def show_question(s, qa): # Override super
-        print "Q:", qa.question
-        # if qa.image_path:
-            # subprocess.call(['open', s.image_folder + '/' + qa.image_path]) # TODO use OS indifferent method
-        print s.PART_DELIMITER
+    def show_current_info(self, quiz_conductor):
+        """Display whatever info you think the user would like to see.
+        quiz_conductor is the object in charge of the quiz, and
+        can give a lot of different information about it.
+        Called before display_question.
+        """ 
+        pass # TODO
+        # raise NotImplementedError('Abstract method - implement it yourself!')
 
-    def show_answer(s, qa): # Override super
-        print "A:"
-        print qa.answer
+    def show_question(self, qa):
+        """Present the given question to the user.
+        """
+        if self.qa_view.contains_section('question'):
+            self.qa_view.revert_to_before_section('question')
+        q = ["Question:", qa.question, '-'*(self.t.width/2)]
+        self.qa_view.extend(q, section_name='question')
 
-    def show_current_info(s, quiz_conductor): # Override super
-        qc = quiz_conductor
-        Terminal.clear()
-        
-        print qc.get_current_category_name()
-        print "|" + Terminal.generate_progress_bar(20, qc.get_progress_within_category()) + "|",
-        print str(qc.get_completed_questions_in_category_count()) + "/" + \
-              str(qc.get_total_questions_in_category_count()), "in this category."
+    def show_answer(self, qa):
+        """Show the reference answer to the user.
+        """
+        a = ["True answer:", qa.answer, '-'*(self.t.width/2)]
+        self.qa_view.extend(a, section_name='answer')
+    
+    def get_response(self):
+        """Returns the user's response to the current question
+        """
+        self.qa_view.push('Your answer (end with an empty line):', section_name='response_prompt')
+        def handler():
+            out = []
+            while True:
+                inp = raw_input_prompt()
+                if inp == '':
+                    return out
+                out.append(inp)
+        response = self.qa_view.render_execute(handler)
+        response = ['> ' + r for r in response]
+        self.qa_view.extend(response + ['-'*(self.t.width/2)], section_name='response')
+        return response
 
-        print "|" + Terminal.generate_progress_bar(20, qc.get_total_progress()) + "|",
-        print str(qc.get_total_questions_done_count()) + "/" + \
-              str(qc.get_total_question_count()), "in total."
-        print
-
-    def get_response(s): # Override super
-        print "Your answer (end with an empty line):"
-        current_answer = ''
+    def get_evaluation(self):
+        """Returns the user's evaluation of their own current response.
+        True for a correct response, False for incorrect.
+        """
+        self.qa_view.push("Was your answer ok? y/n", section_name='eval_prompt')
         while True:
-            answer_fragment = raw_input()
-            if answer_fragment == '':
-                print s.PART_DELIMITER
-                return current_answer.strip()
-            current_answer += answer_fragment
-
-    def get_evaluation(s): # Override super
-        print "Was your answer ok? y/n"
-        while True:
-            inp = raw_input()
+            inp = self.qa_view.render_execute(raw_input_prompt)
             if inp.lower() == 'y':
+                self.qa_view.push('> ' + inp)
                 return True
             elif inp.lower() == 'n':
+                self.qa_view.push('> ' + inp)
                 return False
-            print "Sorry, not understood. y or n, please"
+            else:
+                self.qa_view.push_if_new("Sorry, not understood. y or n, please", section_name='error_msg')
 
-    @staticmethod
-    def clear():
-        """Clear the command line window
+    def make_progress_bar(s, nchars, progress,
+        end_char='|', covered_char='=', current_pos_char='>', uncovered_char=' '):
+        """Returns a string of length nchars
+        progress 
+            A float between 0 and 1
+        end_char 
+            A symbol used to delimit the progress bar. Can be set to None.
+        covered_char 
+            The symbol used for the already covered progress.
+        current_pos_char 
+            The symbol used to indicate the current progress position.
+        uncovered_char 
+            The symbol used for what part remains to be covered by the progress.
+            Defaults to space.
+
+        Example:
+        make_progress_bar(14, 0.75)
+        >> |========>   |
         """
-        os.system('cls' if os.name == 'nt' else 'clear')
+        pb = []
+        if end_char == None or len(end_char) == 0: 
+            end_char = ''
+        else:
+            nchars -= 2
+        p = int(round(nchars * progress))
 
-    @staticmethod
-    def generate_progress_bar(length, progress, orientation='l', on_sym='+', off_sym=' '):
-        """Returns a string resembling a progress bar
-
-        length is an integer indicating how many characters it should span
-        progress is a float  0 <= progress <= 1 indicating how far the bar should indicate we've progressed
-        orientation is either 'l' or 'r', which entails starting the filling-out from the left or 
-        the right, respectively.
-        on_sym is the string symbol used to fill out the progress part. Should be 1 char.
-        off_sym is the string symbol used to fill out the part we haven't reached yet with our progress. Should 
-        be 1 char.
-        """
-        on_part = on_sym * int(progress * length)
-        remaining_length = length - len(on_part)
-
-        if orientation == 'l':
-            return on_part + off_sym*remaining_length
-        elif orientation == 'r':
-            return off_sym*remaining_length + on_part
-
+        pb.append(end_char)
+        pb.extend(covered_char*(p-1))
+        pb.append(current_pos_char)
+        pb.extend(uncovered_char*(nchars-p))
+        pb.append(end_char)
+        
+        return ''.join(pb)
 
 # End of class Terminal
-
-
-def run_terminal_quiz(path, quiz, images='images'):
-    """path is the path to a folder
-    quiz is the file name of the quiz file, presumed to be in the folder "path"
-    images is the folder name of the folder containing images pertaining to 
-    the quiz. It too is expected to be in the path folder.
-    """
-    terminal = Terminal(path, quiz, 'images')
-    terminal.setup()
-    terminal.run()
-
-    print "Write anything followed by enter to reload quiz file."
-    while raw_input() != '':
-        terminal.load_quiz()
-        print "Try a new configuration? y for yes, anything else to exit."
-        if raw_input() == 'y':
-            terminal.setup()
-            terminal.run()
-        else:
-            break
-        print "Write anything followed by enter to reload quiz file."
