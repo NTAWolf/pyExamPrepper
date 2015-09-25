@@ -3,6 +3,7 @@ from __future__ import print_function
 
 from base_interface import QuizInterfaceBase
 import re
+import platform
 
 RE_WHITESPACE = re.compile("^\s*$")
 
@@ -258,12 +259,14 @@ class Terminal(QuizInterfaceBase):
         if self.view.contains_section('question'):
             self.view.revert_to_before_section('question')
         q = ["Question:", qa.question, '-'*(self.t.width/2)]
+        self.show_media(qa.question_media)
         self.view.extend(q, section_name='question')
 
     def show_answer(self, qa):
         """Show the reference answer to the user.
         """
         a = ["True answer:", qa.answer, '-'*(self.t.width/2)]
+        self.show_media(qa.answer_media)
         self.view.extend(a, section_name='answer')
     
     def get_response(self):
@@ -354,5 +357,26 @@ class Terminal(QuizInterfaceBase):
         pb.append(end_char)
         
         return ''.join(pb)
+
+    def show_media(self, media_list):
+        if media_list == None or len(media_list) == 0:
+            return
+        if platform.system() == 'Darwin': # OSX
+            from subprocess import call
+            from os.path import join, isfile
+            from tempfile import TemporaryFile
+            for f in media_list:
+                path = join(self.media_folder,f)
+                if not isfile(path):
+                    self.view.push("There is no file in {}.".format(path))
+                    continue
+                with TemporaryFile() as f:
+                    res = call(['open', path], stderr=f)
+                    f.seek(0) # reset file reader
+                    msg = f.read() # get potential error message from the 'open' process
+                if res != 0:
+                    self.view.push(msg)
+
+
 
 # End of class Terminal

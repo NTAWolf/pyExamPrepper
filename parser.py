@@ -3,49 +3,59 @@ from itertools import groupby
 import re
 
 QUESTION_LINE_RE = re.compile('^\?.*')
-MEDIA_CONTENT_RE = re.compile('^\??(\[([^\]]+)\])+')
+MEDIA_CONTENT_RE = re.compile('^\??(?:\[([^\]]+)\])+')
 COMMENT_LINE_RE = re.compile('^\s*%.*')
+
+
+def extract_media(line):
+    """Extracts text written in square brackets
+    at the beginning of the line. More than one 
+    may be found. Returns whatever remains of 'line',
+    and a list of found media names
+    """
+    media = []
+    while line.startswith('['):
+        n = line.find(']')
+        media.append(line[1:n])
+        line = line[n+1:]
+    return line, media
 
 def extract_QuestionAnswer(lines):
     """Returns a QuestionAnswer.
     lines is a list of strings, and must be guaranteed to
     contain only a full, proper question and answer.
     """
-    for L in lines:
-        errormsg = []
-        if any([COMMENT_LINE_RE.match(L) for L in lines]):
-            msg = "lines must not contain comments."
-            errormsg.append(msg)
-        if any([L == '' for L in lines]):
-            msg = "no empty lines are allowed in a question-answer."
-            errormsg.append(msg)
+    assert not any([COMMENT_LINE_RE.match(L) for L in lines]), "lines must not contain comments."
+    assert not any([L == '' for L in lines]), "no empty lines are allowed in a question-answer."
 
-        grouped = list(groupby(lines, lambda x: bool(QUESTION_LINE_RE.match(x[0]))))
-        if not 1 == sum([k for k,g in grouped]):
-            msg = "A QA must contain at least one question line, and question must be consecutive across lines."
-            errormsg.append(msg)
-        if not len(grouped) == 2:
-            msg = "An error occured - more than one question or one answer is considered part of this qa."
-            errormsg.append(msg)
+    grouped = list(groupby(lines, lambda x: bool(QUESTION_LINE_RE.match(x[0]))))
+    assert 1 == sum([k for k,g in grouped]), "A QA must contain at least one question line, and question must be consecutive across lines."
+    assert len(grouped) == 2, "An error occured - more than one question or one answer is considered part of this qa."
+    
+    # question
+    question_media = []
+    question_text = []
+    answer_media = []
+    answer_text = []
 
-        # question
-        question_media = []
-        question_text = []
-        answer_media = []
-        answer_text = []
+    for i,line in enumerate(lines):
+        if not QUESTION_LINE_RE.match(line):
+            break
+        line, media = extract_media(line[1:])
+        question_media.extend(media)
+        question_text.append(line)
 
-        for line in lines:
-            if QUESTION_LINE_RE.match(line):
-                question_text.append(line[1:])
-            else:
-                answer_text.append(line)
-        
-        qa = QuestionAnswer(''.join(question_text + errormsg), 
-                            ''.join(answer_text), 
-                            question_media, 
-                            answer_media)
+    for line in lines[i:]:
+        line, media = extract_media(line)
+        answer_media.extend(media)
+        answer_text.append(line)
+    
+    qa = QuestionAnswer(''.join(question_text), 
+                        ''.join(answer_text), 
+                        question_media, 
+                        answer_media)
 
-        return qa
+    return qa
 
 
 class LineParser(object):

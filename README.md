@@ -12,9 +12,9 @@ A lightweight quiz program for user-created quizzes. Useful for reading up on ex
 - A category is empty if it is not followed by any questions before the next category or the end of the file.
 - Lines are considered a comment and ignored if the first non-whitespace character is a percentage sign, %.
 - Comment lines can be placed anywhere; in a question, in an answer, before or after a category. They are ignored regardless.
+- Media files may be referred to in questions and answers, using square brackets around the file name at the beginning of a line. Only works in OSX so far, though.
 
 ### To be implemented
-- Media files may be referred to in questions and answers, using square brackets around the file name at the beginning of a line.
 - The media folder may be specified in the first line of the quiz file as MEDIA:relative_path_from_quiz_file_parent_directory
     + E.g. MEDIA:quizmedia, or MEDIA:../../Documents/flags
 

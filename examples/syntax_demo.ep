@@ -30,7 +30,7 @@ Future category (not implemented yet)
 ?Which country has this flag?
 South Korea!
 ?What bird is this?
-?[mockingbird.wav]
+?[mockingbird.mp3]
 The mockingbird
-?Draw the schematics for a simple rectifier.
-[rectifier.jpg]
+?Draw the schematics for a halfwave rectifier.
+[halfwave_rectifier.png]
