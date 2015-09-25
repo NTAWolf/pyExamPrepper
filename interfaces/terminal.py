@@ -178,18 +178,6 @@ class Terminal(QuizInterfaceBase):
         if len(idx) == 0:
             idx = range(len(categories))
 
-        # idx = None
-        # while True:
-        #     # res = s.render(op, raw_input)
-        #     res = view.render_execute(raw_input_prompt)
-        #     if RE_WHITESPACE.match(res): # Empty line
-        #         idx = range(len(categories))
-        #         break
-        #     idx = map(lambda x: x-1, s.parse_uint_list(res))
-        #     if len(idx) > 0:
-        #         break
-        #     view.push_if_new("Something is wrong with your input. Read the rules and try again.", section_name='error_msg')
-
         return [categories[i] for i in idx]
 
     def select_ordering(self, order_options):
@@ -210,17 +198,6 @@ class Terminal(QuizInterfaceBase):
         index = self.select_index_from_list(len(order_options), view, shift=1)
         return order_options[index]
 
-        # while True:
-        #     try:
-        #         inp = int(view.render_execute(raw_input_prompt))
-        #     except ValueError as ve:
-        #         pass
-        #     else:
-        #         if 1 <= inp <= len(order_options):
-        #             index = inp-1
-        #             return order_options[index]
-        #     view.push_if_new("Sorry, not understood. Enter a number from 1 to {}.".format(len(order_options)))
-
 
     def select_repetition_lag(self):
         """Allow user to select how many questions should pass before 
@@ -230,8 +207,21 @@ class Terminal(QuizInterfaceBase):
         Put the decision in s.repetition_lag, and set it to a negative value 
         to just put the failed question at the end of the queue.
         """
-        return 1 # TODO
-        # raise NotImplementedError('Abstract method - implement it yourself!')
+        view = View(self.t)
+        view.push("How many questions must pass before you get a wrongly answered question again?")
+        view.push("Enter a blank line if you don't care" + view.vpad())
+
+        while True:
+            inp = view.render_execute(raw_input_prompt)
+            if inp == '':
+                return 5 # Chosen by fair dice roll. No, really, I found it to be a decent choice.
+            try:
+                inp = int(inp)
+            except ValueError as ve:
+                pass
+            else:
+                return inp
+            view.push_if_new("Sorry, not understood. Please enter either nothing or a natural number.")
 
     def show_current_info(self, quiz_conductor):
         """Display whatever info you think the user would like to see.
