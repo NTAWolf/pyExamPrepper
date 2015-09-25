@@ -8,6 +8,8 @@ In the command line, you may navigate to the folder containing a .ep file
 and just invoke this program directly - it will find the quiz file and open it.
 """
 
+import os
+
 
 def run(interface, file_path, media_path_rel='./media', presets=None):
     """Runs a quiz using the supplied interface (instance of QuizInterfaceBase)
@@ -24,7 +26,11 @@ def run(interface, file_path, media_path_rel='./media', presets=None):
     qc.run(interface)
 
 def find_ep_file(directory):
-    
+    files = os.listdir(directory)
+
+    for f in files:
+        if '.ep.' in f or f.endswith('.ep'):
+            return os.path.join(directory, f)
 
 if __name__ == '__main__':
     import argparse
@@ -32,8 +38,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="CLI for starting the examprepper")
     parser.add_argument("-i", "--interface", dest="interface",default="terminal", 
                         help="Interface type. Currently only supporting 'terminal' for a terminal interface.")
-    parser.add_argument("-f", "--file", dest="file_path", default=None,
-                        help="Absolute path to quiz file")
+    file_arg = parser.add_argument("-f", "--file", dest="file_path", default=None,
+                        help="Path to quiz file, absolute or relative. Or path to its containing directory.")
     parser.add_argument("-m", "--media", dest="media_path",
                         default="./media", help="Relative or absolute path to media folder")
     
@@ -65,17 +71,16 @@ if __name__ == '__main__':
     file_path = args.file_path
     # If no file path given, look for a .ep file in the current directory.
     if file_path == None:
-        import os
-        cwd = os.getcwd()
-        files = os.listdir(cwd)
-
-        for f in files:
-            if '.ep.' in f or f.endswith('.ep'):
-                file_path = os.path.join(cwd, f)
-                break
-
+        directory = os.getcwd()
+        file_path = find_ep_file(directory)
         if file_path == None:
-            raise ArgumentParser("No quiz file given, and no quiz file found in current working directory {}".cwd)
+            raise argparse.ArgumentError(file_arg, "No quiz file given, and no quiz file found in current working directory {}".format(directory))
+    # If file path is actually a directory, look for .ep files in that directory
+    elif os.path.isdir(file_path):
+        directory = file_path
+        file_path = find_ep_file(directory)
+        if file_path == None:
+            raise argparse.ArgumentError(file_arg, "No quiz file (.ep) found in given directory {}".format(directory))
 
     run(interface, file_path, args.media_path, presets=presets)
 
