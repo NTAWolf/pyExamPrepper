@@ -229,8 +229,28 @@ class Terminal(QuizInterfaceBase):
         can give a lot of different information about it.
         Called before display_question.
         """ 
-        pass # TODO
-        # raise NotImplementedError('Abstract method - implement it yourself!')
+
+        qc = quiz_conductor
+        v = self.view
+        v.clear()
+        v.push(qc.get_current_category_name())
+        
+        # Progress bar 1: Progress within category
+        pbtext = str(qc.get_completed_questions_in_category_count()) + "/" \
+               + str(qc.get_total_questions_in_category_count()) + " in this category."
+        pbwidth = min(self.t.width/2, self.t.width-len(pbtext)-1)
+        pb = [self.make_progress_bar(pbwidth, qc.get_progress_within_category(), "|", '=', '>', ' ')]
+        pb.append(pbtext)
+        pb = ' '.join(pb)
+        v.push(pb)
+
+        # Progress bar 2: Progress overall
+        pbtext = str(qc.get_total_questions_done_count()) + "/" \
+               + str(qc.get_total_question_count()) + " in total."
+        pb = [self.make_progress_bar(pbwidth, qc.get_total_progress(), "|", '=', '>', ' ')]
+        pb.append(pbtext)
+        pb = ' '.join(pb)
+        v.push(pb)
 
     def show_question(self, qa):
         """Present the given question to the user.
@@ -300,8 +320,6 @@ class Terminal(QuizInterfaceBase):
 
         res = self.select_index_from_list(len(end_options), view, shift=1, select_multiple=False, accept_empty=False)
         return res
-
-        # raise NotImplementedError('end_of_quiz is an abstract method - implement it yourself!')
 
     def make_progress_bar(s, nchars, progress,
         end_char='|', covered_char='=', current_pos_char='>', uncovered_char=' '):
