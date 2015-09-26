@@ -11,16 +11,10 @@ RE_WHITESPACE = re.compile("^\s*$")
 
 class View(object):
     def __init__(self, terminal=None, input_gt=False, view=None):
-        if view != None and type(view) == View:
-            self.t = terminal or view.t
-            self.contents = view.contents[:]
-            self.section_names = view.section_names.copy()
-            self.input_gt = view.input_gt
-        else:
-            self.t = terminal
-            self.contents = []
-            self.input_gt = input_gt
-            self.section_names = dict()
+        self.t = terminal
+        self.contents = []
+        self.input_gt = input_gt
+        self.section_names = dict()
         self.textwrapper = TextWrapper(width=self.t.width, replace_whitespace=False)
 
     def clear(self):
@@ -352,13 +346,14 @@ class Terminal(QuizInterfaceBase):
         if end_char == None or len(end_char) == 0: 
             end_char = ''
         else:
-            nchars -= 2
+            nchars -= 2 # Remove end characters from the count
         p = int(round(nchars * progress))
 
         pb.append(end_char)
-        pb.extend(covered_char*(p-1))
-        pb.append(current_pos_char)
-        pb.extend(uncovered_char*(nchars-p))
+        pb.extend(covered_char * p)
+        if progress < 1.0: # Don't show current progress char if completed progress
+            pb.append(current_pos_char)
+        pb.extend(uncovered_char * (nchars - p - 1)) # -1 to make room for the current_pos_char
         pb.append(end_char)
         
         return ''.join(pb)
