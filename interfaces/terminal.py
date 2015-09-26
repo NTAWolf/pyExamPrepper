@@ -4,6 +4,7 @@ from __future__ import print_function
 from base_interface import QuizInterfaceBase
 import re
 import platform
+import readline
 
 RE_WHITESPACE = re.compile("^\s*$")
 
