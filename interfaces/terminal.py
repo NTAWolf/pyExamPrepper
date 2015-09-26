@@ -5,6 +5,7 @@ from base_interface import QuizInterfaceBase
 import re
 import platform
 import readline
+from textwrap import TextWrapper
 
 RE_WHITESPACE = re.compile("^\s*$")
 
@@ -20,6 +21,7 @@ class View(object):
             self.contents = []
             self.input_gt = input_gt
             self.section_names = dict()
+        self.textwrapper = TextWrapper(width=self.t.width, replace_whitespace=False)
 
     def clear(self):
         self.contents = []
@@ -68,14 +70,17 @@ class View(object):
         text = text.strip()
         return text.center(self.t.width)
 
-    def render_execute(self, execute):
+    def render_execute(self, execute, word_wrap=True):
         """execute is a method to be run while showing the contents
         whatever execute returns will be returned by render. No 
         arguments are passed to it.
         """
         with self.t.fullscreen():
             for v in self.contents:
-                print(v)
+                if word_wrap:
+                    print(self.textwrapper.fill(v))
+                else:
+                    print(v)
             if self.input_gt:
                 print('> ', end='')
             return execute()
