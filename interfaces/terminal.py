@@ -278,9 +278,9 @@ class Terminal(QuizInterfaceBase):
             out = []
             while True:
                 inp = raw_input_prompt()
+                out.append(inp)
                 if inp == '':
                     return out
-                out.append(inp)
         response = self.view.render_execute(handler)
         response = ['> ' + r for r in response]
         self.view.extend(response + ['-'*(self.t.width/2)], section_name='response')
@@ -293,14 +293,13 @@ class Terminal(QuizInterfaceBase):
         self.view.push("Was your answer ok? y/n", section_name='eval_prompt')
         while True:
             inp = self.view.render_execute(raw_input_prompt)
+            self.view.push('> ' + inp)
             if inp.lower() == 'y':
-                self.view.push('> ' + inp)
                 return True
             elif inp.lower() == 'n':
-                self.view.push('> ' + inp)
                 return False
             else:
-                self.view.push_if_new("Sorry, not understood. y or n, please", section_name='error_msg')
+                self.view.push("Sorry, not understood. y or n, please", section_name='error_msg')
 
 
     def end_of_quiz(self, quiz_conductor, end_options):
