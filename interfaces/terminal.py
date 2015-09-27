@@ -61,7 +61,6 @@ class View(object):
         """text is a string
         returns text padded with whitespace to center it
         """
-        text = text.strip()
         return text.center(self.t.width)
 
     def render_execute(self, execute, word_wrap=True):
