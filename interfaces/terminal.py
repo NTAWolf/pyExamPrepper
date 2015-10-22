@@ -88,7 +88,11 @@ class Terminal(QuizInterfaceBase):
     """
 
     def __init__(s):
-        from blessed import Terminal as BlessedTerminal
+        try:
+            from blessed import Terminal as BlessedTerminal
+        except ImportError, ie:
+            from poor_mans_blessed import Terminal as BlessedTerminal
+
         s.t = BlessedTerminal()
         s.view = View(s.t)
         
